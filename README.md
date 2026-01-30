@@ -4,7 +4,7 @@ Headless IDA Pro MCP server for AI-powered reverse engineering.
 
 ## Prerequisites
 
-- IDA Pro 9.2+ with valid license
+- IDA 9.2 with valid license
 
 ## Getting Started
 
@@ -63,6 +63,19 @@ decompile(address: "0x100000f00")
 ```
 
 The default tool list includes all tools. Use `tool_catalog`/`tool_help` to discover capabilities and avoid dumping the full list into context.
+
+## Troubleshooting
+
+### IDA variant not found (IDA Home, IDA Essential, etc.)
+
+If you're using a non-standard IDA installation (e.g., **IDA Home** or **IDA Essential**), the server may fail to locate the IDA libraries. Set `DYLD_LIBRARY_PATH` to point to your IDA's `Contents/MacOS` directory:
+
+```bash
+# Example for IDA Essential 9.2
+claude mcp add ida -s user -e DYLD_LIBRARY_PATH='/Applications/IDA Essential 9.2.app/Contents/MacOS' -- ida-mcp
+```
+
+Adjust the path to match your IDA installation. Note: only IDA 9.2 is currently supported (future versions planned).
 
 ## Docs
 
