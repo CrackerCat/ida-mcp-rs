@@ -1,0 +1,79 @@
+# Test justfile for ida-mcp
+
+cc := env_var_or_default("CC", "cc")
+cflags := env_var_or_default("CFLAGS", "-O0 -g -fno-omit-frame-pointer")
+
+test_src := "fixtures/mini.c"
+test_bin := "fixtures/mini"
+test_lock := "fixtures/mini.imcp"
+
+server_bin := env_var_or_default("SERVER_BIN", "../target/release/ida-mcp")
+rust_log := env_var_or_default("RUST_LOG", "ida_mcp=trace")
+
+# Show available recipes
+default:
+    @just --list
+
+# Build test fixture
+fixture:
+    {{cc}} {{cflags}} -o "{{test_bin}}" "{{test_src}}"
+
+# Run stdio integration test
+test: fixture
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -x "{{server_bin}}" ]; then
+        echo "Server binary not found: {{server_bin}}"
+        echo "Run 'cargo build --release' first"
+        exit 1
+    fi
+    LOCK="{{test_lock}}"
+    if [ -f "$LOCK" ]; then
+        pid=$(awk -F= '$1=="pid"{print $2}' "$LOCK" | tr -d '\r')
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "Lock file $LOCK is held by pid $pid; close that server first." >&2
+            exit 1
+        else
+            rm -f "$LOCK"
+        fi
+    fi
+    echo "🧪 Running stdio integration test..."
+    tmp="$(mktemp)"
+    RUST_LOG="{{rust_log}}" "{{server_bin}}" < payloads/mini.jsonl >"$tmp" 2>&1 || true
+    cat "$tmp"
+    if rg -q '"isError"\s*:\s*true' "$tmp"; then
+        rm -f "$tmp"
+        exit 1
+    fi
+    rm -f "$tmp"
+    echo "✅ Stdio test passed"
+
+# Run HTTP integration test
+test-http: fixture
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -x "{{server_bin}}" ]; then
+        echo "Server binary not found: {{server_bin}}"
+        echo "Run 'cargo build --release' first"
+        exit 1
+    fi
+    LOCK="{{test_lock}}"
+    if [ -f "$LOCK" ]; then
+        pid=$(awk -F= '$1=="pid"{print $2}' "$LOCK" | tr -d '\r')
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "Lock file $LOCK is held by pid $pid; close that server first." >&2
+            exit 1
+        else
+            rm -f "$LOCK"
+        fi
+    fi
+    echo "🧪 Running HTTP integration test..."
+    RUST_LOG="{{rust_log}}" IDB_PATH="{{test_bin}}" MCP_HTTP_BIN="{{server_bin}}" ./http_integration.sh
+    echo "✅ HTTP test passed"
+
+# Clean test artifacts
+clean:
+    rm -f "{{test_bin}}"
+    rm -rf fixtures/mini.dSYM
+    rm -f fixtures/*.i64 fixtures/*.idb
+    rm -f fixtures/*.id0 fixtures/*.id1 fixtures/*.id2 fixtures/*.nam fixtures/*.til fixtures/*.imcp
