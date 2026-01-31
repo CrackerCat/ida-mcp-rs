@@ -7,19 +7,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !ida_path.exists() || !idalib_path.exists() {
         println!("cargo::warning=IDA installation not found, using SDK stubs");
         idalib_build::configure_idasdk_linkage();
-
-        // Still set the rpath for runtime, even when building with SDK stubs.
-        // This allows the binary to find IDA libraries on the target system.
-        set_rpath(&install_path);
     } else {
-        // Sets RPATH to IDA installation so libraries are found at runtime
+        // Configure linkage to IDA libraries
         idalib_build::configure_linkage()?;
     }
+
+    // Always set rpaths for runtime library discovery.
+    // This adds the specified install path plus common default locations
+    // so the binary can find IDA libraries without DYLD_LIBRARY_PATH.
+    set_rpath(&install_path);
 
     Ok(())
 }
 
 /// Set rpath to the IDA installation directory for runtime library loading.
+/// Adds multiple common IDA installation paths so the binary can find libraries
+/// without requiring DYLD_LIBRARY_PATH to be set.
 fn set_rpath(install_path: &PathBuf) {
     let os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| {
         if cfg!(target_os = "macos") {
@@ -31,15 +34,43 @@ fn set_rpath(install_path: &PathBuf) {
         }
     });
 
+    // Always add the specified install path first
+    add_rpath(install_path);
+
+    // Add common default paths as fallbacks (IDA 9.2 variants)
     if os == "macos" {
-        println!(
-            "cargo::rustc-link-arg=-Wl,-rpath,{}",
-            install_path.display()
-        );
+        // Common macOS IDA 9.2 installation paths (all editions)
+        let default_paths = [
+            "/Applications/IDA Professional 9.2.app/Contents/MacOS",
+            "/Applications/IDA Pro 9.2.app/Contents/MacOS",
+            "/Applications/IDA Home 9.2.app/Contents/MacOS",
+            "/Applications/IDA Essential 9.2.app/Contents/MacOS",
+        ];
+        for path in default_paths {
+            let p = PathBuf::from(path);
+            if p != *install_path {
+                add_rpath(&p);
+            }
+        }
     } else if os == "linux" {
-        println!(
-            "cargo::rustc-link-arg=-Wl,-rpath,{}",
-            install_path.display()
-        );
+        // Common Linux IDA 9.2 installation paths
+        let home = env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
+        let default_paths = [
+            format!("{}/idapro-9.2", home),
+            format!("{}/ida-pro-9.2", home),
+            "/opt/idapro-9.2".to_string(),
+            "/opt/ida-pro-9.2".to_string(),
+            "/usr/local/idapro-9.2".to_string(),
+        ];
+        for path in default_paths {
+            let p = PathBuf::from(&path);
+            if p != *install_path {
+                add_rpath(&p);
+            }
+        }
     }
+}
+
+fn add_rpath(path: &PathBuf) {
+    println!("cargo::rustc-link-arg=-Wl,-rpath,{}", path.display());
 }
