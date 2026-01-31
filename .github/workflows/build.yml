@@ -31,8 +31,7 @@ jobs:
           IDADIR: /opt/idapro-9.2
         run: cargo build --release --locked
 
-      - name: Run tests
-        run: cargo test --release --locked
+      # Tests require IDA runtime libraries - run locally only
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -54,9 +53,6 @@ jobs:
         env:
           IDADIR: /Applications/IDA Professional 9.2.app/Contents/MacOS
         run: cargo build --release --locked
-
-      - name: Run tests
-        run: cargo test --release --locked
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -83,9 +79,6 @@ jobs:
         env:
           IDADIR: C:\Program Files\IDA Professional 9.2
         run: cargo build --release --locked
-
-      - name: Run tests
-        run: cargo test --release --locked
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
