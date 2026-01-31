@@ -12,15 +12,7 @@ build:
 release:
     cargo build --release
 
-# Build snapshot with goreleaser
-snapshot:
-    goreleaser build --clean --timeout 60m --snapshot
-
-# Build and publish release with goreleaser
-dist:
-    goreleaser release --clean --timeout 60m --skip=validate
-
-# Build and publish prerelease (macOS ARM64)
+# Build and publish prerelease (macOS ARM64 only, for local testing)
 prerelease ida_version="9.3": && (update-beta-cask ida_version)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -85,6 +77,61 @@ update-beta-cask ida_version="9.3":
     git commit -m "Update ida-mcp@beta to ${VERSION}"
     git push
     echo "Pushed beta cask to homebrew-tap"
+
+# Update homebrew stable cask in tap (run after GitHub release is created)
+update-cask:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+    TAP_DIR="${HOME}/Developer/Mine/blacktop/homebrew-tap"
+    TARBALL_URL="https://github.com/blacktop/ida-mcp-rs/releases/download/v${VERSION}/ida-mcp_${VERSION}_Darwin_arm64.tar.gz"
+
+    if [[ ! -d "$TAP_DIR" ]]; then
+        echo "Error: homebrew-tap not found at $TAP_DIR"
+        exit 1
+    fi
+
+    # Download tarball to get SHA256
+    echo "Downloading release tarball..."
+    mkdir -p dist
+    curl -sL "$TARBALL_URL" -o "dist/ida-mcp_${VERSION}_Darwin_arm64.tar.gz"
+    SHA256=$(shasum -a 256 "dist/ida-mcp_${VERSION}_Darwin_arm64.tar.gz" | awk '{print $1}')
+
+    cat > "$TAP_DIR/Casks/ida-mcp.rb" << EOF
+    # This file is auto-generated. DO NOT EDIT.
+    cask "ida-mcp" do
+      version "${VERSION}"
+      sha256 "${SHA256}"
+
+      url "https://github.com/blacktop/ida-mcp-rs/releases/download/v#{version}/ida-mcp_#{version}_Darwin_arm64.tar.gz"
+      name "ida-mcp"
+      desc "Headless IDA Pro MCP Server for AI-powered binary analysis"
+      homepage "https://github.com/blacktop/ida-mcp-rs"
+
+      conflicts_with cask: "ida-mcp@beta"
+
+      binary "ida-mcp"
+
+      postflight do
+        Dir.glob("#{staged_path}/**/ida-mcp").each do |f|
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", f]
+        end
+      end
+
+      caveats do
+        <<~EOS
+          ida-mcp requires IDA Pro 9.2+ to be installed.
+        EOS
+      end
+    end
+    EOF
+
+    echo "Generated $TAP_DIR/Casks/ida-mcp.rb"
+    cd "$TAP_DIR"
+    git add "Casks/ida-mcp.rb"
+    git commit -m "Update ida-mcp to ${VERSION}"
+    git push
+    echo "Pushed stable cask to homebrew-tap"
 
 # Run integration test (debug)
 test: build

@@ -4,24 +4,91 @@ Headless IDA Pro MCP server for AI-powered reverse engineering.
 
 ## Prerequisites
 
-- IDA 9.2 with valid license
+- IDA 9.2+ (stable) or IDA 9.3+ (beta) with valid license
 
 ## Getting Started
 
 ### Install
 
-Via [Homebrew](https://brew.sh)
+Via [Homebrew](https://brew.sh) (macOS only)
 ```bash
+# Stable (IDA 9.2)
 brew install blacktop/tap/ida-mcp
+
+# Beta (IDA 9.3)
+brew install blacktop/tap/ida-mcp@beta
 ```
 
 **Download binary**
 
-Grab the latest release from [GitHub Releases](https://github.com/blacktop/ida-mcp-rs/releases).
+Grab the latest release for your platform from [GitHub Releases](https://github.com/blacktop/ida-mcp-rs/releases).
 
 **Build from source**
 
 See [docs/BUILDING.md](docs/BUILDING.md).
+
+### Platform Setup
+
+#### macOS
+
+```bash
+# Add to your MCP config
+claude mcp add ida -- ida-mcp
+```
+
+If using IDA Home/Essential or non-standard path:
+```bash
+claude mcp add ida -s user -e DYLD_LIBRARY_PATH='/Applications/IDA Essential 9.2.app/Contents/MacOS' -- ida-mcp
+```
+
+Common macOS IDA paths:
+- `/Applications/IDA Professional 9.2.app/Contents/MacOS`
+- `/Applications/IDA Professional 9.3.app/Contents/MacOS` (beta)
+- `/Applications/IDA Home 9.2.app/Contents/MacOS`
+- `/Applications/IDA Essential 9.2.app/Contents/MacOS`
+
+#### Linux
+
+```bash
+# Set IDADIR to your IDA installation
+export IDADIR=/opt/idapro-9.2
+
+# Add to your MCP config
+claude mcp add ida -s user -e IDADIR='/opt/idapro-9.2' -- ida-mcp
+```
+
+Common Linux IDA paths:
+- `/opt/idapro-9.2`
+- `/home/<user>/idapro-9.2`
+- `/usr/local/idapro-9.2`
+
+#### Windows
+
+```powershell
+# Set IDADIR environment variable (System Properties > Environment Variables)
+# Or in PowerShell profile:
+$env:IDADIR = "C:\Program Files\IDA Professional 9.2"
+$env:PATH = "$env:IDADIR;$env:PATH"
+
+# Add to MCP config
+# Note: You may need to set IDADIR globally in System Environment Variables
+claude mcp add ida -- ida-mcp
+```
+
+Common Windows IDA paths:
+- `C:\Program Files\IDA Professional 9.2`
+- `C:\IDA Professional 9.2`
+- `C:\Program Files\IDA Home 9.2`
+
+### Runtime Requirements
+
+The binary links against IDA's libraries at runtime:
+
+| Platform | Library | How to Configure |
+|----------|---------|------------------|
+| macOS | `libidalib.dylib` | `DYLD_LIBRARY_PATH` or baked RPATH |
+| Linux | `libidalib.so` | `IDADIR` env var (RPATH baked at build) |
+| Windows | `idalib.dll` | Add `IDADIR` to `PATH` |
 
 ### Configure your AI agent
 
@@ -63,19 +130,6 @@ decompile(address: "0x100000f00")
 ```
 
 The default tool list includes all tools. Use `tool_catalog`/`tool_help` to discover capabilities and avoid dumping the full list into context.
-
-## Troubleshooting
-
-### IDA variant not found (IDA Home, IDA Essential, etc.)
-
-If you're using a non-standard IDA installation (e.g., **IDA Home** or **IDA Essential**), the server may fail to locate the IDA libraries. Set `DYLD_LIBRARY_PATH` to point to your IDA's `Contents/MacOS` directory:
-
-```bash
-# Example for IDA Essential 9.2
-claude mcp add ida -s user -e DYLD_LIBRARY_PATH='/Applications/IDA Essential 9.2.app/Contents/MacOS' -- ida-mcp
-```
-
-Adjust the path to match your IDA installation. Note: only IDA 9.2 is currently supported (future versions planned).
 
 ## Docs
 
