@@ -37,10 +37,16 @@ fn set_rpath(install_path: &PathBuf) {
     // Always add the specified install path first
     add_rpath(install_path);
 
-    // Add common default paths as fallbacks (IDA 9.2 variants)
+    // Add common default paths as fallbacks (IDA 9.2 and 9.3 variants)
     if os == "macos" {
-        // Common macOS IDA 9.2 installation paths (all editions)
+        // Common macOS IDA installation paths (all editions)
         let default_paths = [
+            // IDA 9.3 paths
+            "/Applications/IDA Professional 9.3.app/Contents/MacOS",
+            "/Applications/IDA Pro 9.3.app/Contents/MacOS",
+            "/Applications/IDA Home 9.3.app/Contents/MacOS",
+            "/Applications/IDA Essential 9.3.app/Contents/MacOS",
+            // IDA 9.2 paths
             "/Applications/IDA Professional 9.2.app/Contents/MacOS",
             "/Applications/IDA Pro 9.2.app/Contents/MacOS",
             "/Applications/IDA Home 9.2.app/Contents/MacOS",
@@ -53,9 +59,16 @@ fn set_rpath(install_path: &PathBuf) {
             }
         }
     } else if os == "linux" {
-        // Common Linux IDA 9.2 installation paths
+        // Common Linux IDA installation paths
         let home = env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
         let default_paths = [
+            // IDA 9.3 paths
+            format!("{}/idapro-9.3", home),
+            format!("{}/ida-pro-9.3", home),
+            "/opt/idapro-9.3".to_string(),
+            "/opt/ida-pro-9.3".to_string(),
+            "/usr/local/idapro-9.3".to_string(),
+            // IDA 9.2 paths
             format!("{}/idapro-9.2", home),
             format!("{}/ida-pro-9.2", home),
             "/opt/idapro-9.2".to_string(),
